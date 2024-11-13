@@ -35,6 +35,14 @@ pub fn build(b: *std.Build) void {
     intrinsics.entry = .disabled;
     intrinsics.rdynamic = true;
 
+    // FIXME: use .getEmittedAsm to get the wasm output from zig and drop wasm2wat dep!
+    // FIXME: build wasm2wat as a dep
+    const intrinsics_to_wat_step = b.addSystemCommand(&.{"wasm2wat"});
+    intrinsics_to_wat_step.addFileArg(intrinsics.getEmittedBin());
+    intrinsics_to_wat_step.addArg("-o");
+    const intrinsics_wat_file = intrinsics_to_wat_step.addOutputFileArg("grappl-intrinsics.wat");
+    intrinsics_to_wat_step.step.dependOn(&intrinsics.step);
+
     const exe = b.addExecutable(.{
         .name = "zig-embedfile-wat",
         .root_source_file = b.path("src/main.zig"),
@@ -44,7 +52,8 @@ pub fn build(b: *std.Build) void {
     exe.step.dependOn(&intrinsics.step);
 
     exe.root_module.addAnonymousImport("instrinsics", .{
-        .root_source_file = intrinsics.getEmittedAsm(),
+        //.root_source_file = intrinsics.getEmittedAsm(),
+        .root_source_file = intrinsics_wat_file,
     });
 
     // This declares intent for the executable to be installed into the
